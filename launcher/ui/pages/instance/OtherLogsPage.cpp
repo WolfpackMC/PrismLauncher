@@ -88,7 +88,7 @@ OtherLogsPage::OtherLogsPage(QString id, QString displayName, QString helpPage, 
     if (m_instance) {
         m_model->setMaxLines(getConsoleMaxLines(m_instance->settings()));
         m_model->setStopOnOverflow(shouldStopOnConsoleOverflow(m_instance->settings()));
-        m_model->setOverflowMessage(tr("Cannot display this log since the log length surpassed %1 lines.").arg(m_model->getMaxLines()));
+        m_model->setOverflowMessage(overflowMessageFor(m_model->getMaxLines()));
     } else {
         modelStateToUI();
     }
@@ -101,7 +101,14 @@ OtherLogsPage::OtherLogsPage(QString id, QString displayName, QString helpPage, 
     // instead of re-scanning and re-loading the log on every single change.
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_repopulateTimer, qOverload<>(&QTimer::start));
 
-    connect(&m_parseWatcher, &QFutureWatcher<OtherLogsParseResult>::finished, this, &OtherLogsPage::applyParseResult);
+    connect(&m_parseWatcher, &QFutureWatcher<OtherLogsParseResult>::finished, this, [this] {
+        m_inFlightFile.clear();
+        bool hadPending = m_reloadPending;
+        m_reloadPending = false;
+        applyParseResult();
+        if (hadPending)
+            reload();
+    });
 
     auto findShortcut = new QShortcut(QKeySequence(QKeySequence::Find), this);
     connect(findShortcut, &QShortcut::activated, this, &OtherLogsPage::findActivated);
@@ -262,6 +269,14 @@ void OtherLogsPage::reload()
         return;
     }
 
+    // A parse for this exact file is already running (e.g. the debounce timer fired again
+    // while a large/slow parse is still in flight); coalesce instead of piling up redundant
+    // concurrent reads of the same file. It'll be re-issued once the running one finishes.
+    if (!m_inFlightFile.isEmpty() && m_inFlightFile == m_currentFile && m_parseWatcher.isRunning()) {
+        m_reloadPending = true;
+        return;
+    }
+
     // Config for the parse depends on settings that may only be safely read on the GUI thread,
     // so resolve it here and hand plain values to the worker thread.
     int maxLines;
@@ -273,13 +288,14 @@ void OtherLogsPage::reload()
     } else {
         maxLines = getConsoleMaxLines(APPLICATION->settings());
         stopOnOverflow = shouldStopOnConsoleOverflow(APPLICATION->settings());
-        overflowMessage = tr("Cannot display this log since the log length surpassed %1 lines.").arg(maxLines);
+        overflowMessage = overflowMessageFor(maxLines);
     }
 
     // Disable controls while the (potentially large) file is read and parsed off the GUI
     // thread; applyParseResult() re-enables them once a result comes back.
     setControlsEnabled(false);
 
+    m_inFlightFile = m_currentFile;
     auto filePath = FS::PathCombine(m_basePath, m_currentFile);
     auto future = QtConcurrent::run(&OtherLogsPage::parseLogFile, m_currentFile, filePath, m_instance != nullptr, maxLines,
                                     stopOnOverflow, overflowMessage);
@@ -307,6 +323,11 @@ OtherLogsParseResult OtherLogsPage::parseLogFile(QString fileName,
         result.tooBig = true;
         return result;
     }
+
+    // Avoid repeated reallocation while appending below; maxLines is a hard upper bound only
+    // when stopOnOverflow is set, otherwise the final line count is unknown ahead of time.
+    if (stopOnOverflow)
+        result.lines.reserve(maxLines);
 
     MessageLevel last = MessageLevel::Unknown;
     int count = 0;
@@ -379,6 +400,11 @@ OtherLogsParseResult OtherLogsPage::parseLogFile(QString fileName,
     return result;
 }
 
+QString OtherLogsPage::overflowMessageFor(int maxLines)
+{
+    return tr("Cannot display this log since the log length surpassed %1 lines.").arg(maxLines);
+}
+
 void OtherLogsPage::applyParseResult()
 {
     auto result = m_parseWatcher.result();
@@ -424,7 +450,7 @@ void OtherLogsPage::applyParseResult()
         m_model = new LogModel(this);
         m_model->setMaxLines(getConsoleMaxLines(APPLICATION->settings()));
         m_model->setStopOnOverflow(shouldStopOnConsoleOverflow(APPLICATION->settings()));
-        m_model->setOverflowMessage(tr("Cannot display this log since the log length surpassed %1 lines.").arg(m_model->getMaxLines()));
+        m_model->setOverflowMessage(overflowMessageFor(m_model->getMaxLines()));
     }
     m_model->clear();
     for (const auto& entry : result.lines) {

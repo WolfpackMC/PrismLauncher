@@ -117,6 +117,10 @@ class OtherLogsPage : public QWidget, public BasePage {
                                              bool stopOnOverflow,
                                              QString overflowMessage);
 
+    /** The message shown in place of a line once a log hits maxLines, shared by every place
+     *  that sets up console line-limit config so the wording can't drift between them. */
+    static QString overflowMessageFor(int maxLines);
+
    private:
     QString m_id;
     QString m_displayName;
@@ -134,6 +138,12 @@ class OtherLogsPage : public QWidget, public BasePage {
     QTimer m_repopulateTimer;
 
     QFutureWatcher<OtherLogsParseResult> m_parseWatcher;
+    /** File a parse is currently in flight for, empty if none. Used to coalesce repeated
+     *  reload() calls for the same file (e.g. from the debounce timer firing again while a
+     *  large/slow parse is still running) instead of piling up redundant concurrent reads. */
+    QString m_inFlightFile;
+    /** Set when reload() is coalesced away; re-issued once the in-flight parse finishes. */
+    bool m_reloadPending = false;
 
     LogFormatProxyModel* m_proxy;
     LogModel* m_model;
