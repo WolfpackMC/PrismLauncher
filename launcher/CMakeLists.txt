@@ -158,6 +158,10 @@ set(LAUNCH_SOURCES
     launch/steps/PostLaunchCommand.h
     launch/steps/PreLaunchCommand.cpp
     launch/steps/PreLaunchCommand.h
+    launch/steps/WolfpackUpdate.cpp
+    launch/steps/WolfpackUpdate.h
+    launch/steps/WolfpackUpdaterFetch.cpp
+    launch/steps/WolfpackUpdaterFetch.h
     launch/steps/TextPrint.cpp
     launch/steps/TextPrint.h
     launch/steps/QuitAfterGameStop.cpp
@@ -921,6 +925,8 @@ SET(LAUNCHER_SOURCES
     ui/pages/instance/ModFolderPage.h
     ui/pages/instance/NotesPage.cpp
     ui/pages/instance/NotesPage.h
+    ui/pages/instance/WolfpackPage.cpp
+    ui/pages/instance/WolfpackPage.h
     ui/pages/instance/LogPage.cpp
     ui/pages/instance/LogPage.h
     ui/pages/instance/InstanceSettingsPage.h
@@ -1219,6 +1225,7 @@ qt_wrap_ui(LAUNCHER_UI
     ui/pages/global/ExternalToolsPage.ui
     ui/pages/instance/ExternalResourcesPage.ui
     ui/pages/instance/NotesPage.ui
+    ui/pages/instance/WolfpackPage.ui
     ui/pages/instance/LogPage.ui
     ui/pages/instance/ServersPage.ui
     ui/pages/instance/OtherLogsPage.ui

@@ -16,6 +16,7 @@
 #include "ui/pages/instance/ShaderPackPage.h"
 #include "ui/pages/instance/TexturePackPage.h"
 #include "ui/pages/instance/VersionPage.h"
+#include "ui/pages/instance/WolfpackPage.h"
 #include "ui/pages/instance/WorldListPage.h"
 
 class InstancePageProvider : protected QObject, public BasePageProvider {
@@ -45,6 +46,7 @@ class InstancePageProvider : protected QObject, public BasePageProvider {
         values.append(new ServersPage(onesix));
         values.append(new ScreenshotsPage(FS::PathCombine(onesix->gameRoot(), "screenshots")));
         values.append(new InstanceSettingsPage(onesix));
+        values.append(new WolfpackPage(onesix));
         values.append(new OtherLogsPage("logs", tr("Other Logs"), "Other-Logs", inst));
         return values;
     }

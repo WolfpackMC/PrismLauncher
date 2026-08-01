@@ -130,6 +130,9 @@ BaseInstance::BaseInstance(SettingsObject* globalSettings, std::unique_ptr<Setti
     m_settings->registerSetting("ManagedPackVersionName", "");
     m_settings->registerSetting("ManagedPackURL", "");
 
+    // Wolfpack updater
+    m_settings->registerSetting("WolfpackEnabled", false);
+
     m_settings->registerSetting("Profiler", "");
 }
 
@@ -192,6 +195,16 @@ void BaseInstance::setManagedPack(const QString& type,
     m_settings->set("ManagedPackName", name);
     m_settings->set("ManagedPackVersionID", versionId);
     m_settings->set("ManagedPackVersionName", version);
+}
+
+bool BaseInstance::isWolfpackInstance() const
+{
+    return m_settings->get("WolfpackEnabled").toBool();
+}
+
+void BaseInstance::setWolfpackEnabled(bool enabled)
+{
+    m_settings->set("WolfpackEnabled", enabled);
 }
 
 void BaseInstance::copyManagedPack(BaseInstance& other)

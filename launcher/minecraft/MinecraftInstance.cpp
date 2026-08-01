@@ -53,6 +53,7 @@
 #include "launch/steps/LookupServerAddress.h"
 #include "launch/steps/PostLaunchCommand.h"
 #include "launch/steps/PreLaunchCommand.h"
+#include "launch/steps/WolfpackUpdate.h"
 #include "launch/steps/QuitAfterGameStop.h"
 #include "launch/steps/TextPrint.h"
 
@@ -1158,6 +1159,14 @@ LaunchTask* MinecraftInstance::createLaunchTask(AuthSessionPtr session, Minecraf
         auto step = makeShared<LookupServerAddress>(pptr);
         step->setLookupAddress(targetToJoin->address);
         step->setOutputAddressPtr(targetToJoin);
+        process->appendStep(step);
+    }
+
+    // run the Wolfpack updater before the component list is resolved, so an mmc-pack.json
+    // edit (e.g. a NeoForge version bump) takes effect on this launch, not the next one
+    if (isWolfpackInstance()) {
+        auto step = makeShared<WolfpackUpdate>(pptr);
+        step->setWorkingDirectory(gameRoot());
         process->appendStep(step);
     }
 
