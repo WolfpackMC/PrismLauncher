@@ -46,7 +46,7 @@ void Resource::parseFile()
     m_internal_id = file_name;
 
     std::tie(m_size_str, m_size_info) = calculateFileSize(m_file_info);
-    m_hardLinkCount = FS::hardLinkCount(m_file_info.absoluteFilePath());
+    m_hardLinkCountKnown = false;
     if (m_file_info.isDir()) {
         m_type = ResourceType::FOLDER;
         m_name = file_name;
@@ -288,6 +288,10 @@ bool Resource::isSymLinkUnder(const QString& instPath) const
 
 bool Resource::isMoreThanOneHardLink() const
 {
+    if (!m_hardLinkCountKnown) {
+        m_hardLinkCount = FS::hardLinkCount(m_file_info.absoluteFilePath());
+        m_hardLinkCountKnown = true;
+    }
     return m_hardLinkCount > 1;
 }
 
