@@ -212,5 +212,9 @@ class Resource : public QObject {
     int m_resolution_ticket = 0;
     QString m_size_str;
     qint64 m_size_info;
-    std::uintmax_t m_hardLinkCount = 0;
+    /* Hard link count is only needed for the (rarely-hovered/visible) tooltip and icon in
+     * ResourceFolderModel, so it's computed lazily on first access rather than for every
+     * resource up front on every folder scan. */
+    mutable std::uintmax_t m_hardLinkCount = 0;
+    mutable bool m_hardLinkCountKnown = false;
 };
