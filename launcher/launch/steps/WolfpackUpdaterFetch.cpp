@@ -36,6 +36,9 @@ const QString kReleasesApiUrl = "https://api.github.com/repos/WolfpackMC/updater
 #ifdef Q_OS_WIN32
 const QString kAssetName = "wolfpacker-windows.exe";
 const QString kBinaryName = "wolfpacker.exe";
+#elif defined(Q_OS_MAC)
+const QString kAssetName = "wolfpacker-macos";
+const QString kBinaryName = "wolfpacker";
 #else
 const QString kAssetName = "wolfpacker-linux";
 const QString kBinaryName = "wolfpacker";
