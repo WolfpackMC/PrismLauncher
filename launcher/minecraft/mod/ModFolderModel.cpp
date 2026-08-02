@@ -276,16 +276,25 @@ void ModFolderModel::onParseFinished()
     m_requires.clear();
     m_requiredBy.clear();
 
-    auto findByProjectID = [mods](QVariant modId, ModPlatform::ResourceProvider provider) -> Mod* {
-        auto found = std::find_if(mods.begin(), mods.end(), [modId, provider](Mod* m) {
-            return m->metadata() && m->metadata()->provider == provider && m->metadata()->project_id == modId;
-        });
-        return found != mods.end() ? *found : nullptr;
-    };
+    // Build lookup tables once instead of doing a linear scan over every mod for each
+    // dependency of each mod (which was O(n^2) for modpacks with many mods/dependencies).
+    QHash<QString, Mod*> modsById;
+    modsById.reserve(mods.size());
+    // QVariant has no qHash overload here, so key on its string form (project ids are
+    // consistently either numeric or string per-provider, so this matches the old
+    // QVariant::operator== comparisons in practice).
+    QHash<int, QHash<QString, Mod*>> modsByProjectId;
+    for (auto mod : mods) {
+        modsById.insert(mod->mod_id(), mod);
+        if (mod->metadata()) {
+            modsByProjectId[static_cast<int>(mod->metadata()->provider)].insert(mod->metadata()->project_id.toString(), mod);
+        }
+    }
+
     for (auto mod : mods) {
         auto id = mod->mod_id();
         for (auto dep : mod->dependencies()) {
-            auto d = findById(mods, dep);
+            auto d = modsById.value(dep);
             if (d) {
                 m_requires[id] << d;
                 m_requiredBy[d->mod_id()] << mod;
@@ -294,7 +303,7 @@ void ModFolderModel::onParseFinished()
         if (mod->metadata()) {
             for (auto dep : mod->metadata()->dependencies) {
                 if (dep.type == ModPlatform::DependencyType::REQUIRED) {
-                    auto d = findByProjectID(dep.addonId, mod->metadata()->provider);
+                    auto d = modsByProjectId.value(static_cast<int>(mod->metadata()->provider)).value(dep.addonId.toString());
                     if (d) {
                         m_requires[id] << d;
                         m_requiredBy[d->mod_id()] << mod;
