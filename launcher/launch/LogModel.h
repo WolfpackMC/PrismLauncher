@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QPair>
 #include <QString>
 #include "MessageLevel.h"
 
@@ -13,6 +14,10 @@ class LogModel : public QAbstractListModel {
     QVariant data(const QModelIndex& index, int role) const;
 
     void append(MessageLevel, QString line);
+    /** Batch equivalent of calling append() for each entry in order: single beginInsertRows/
+     *  endInsertRows for the whole batch instead of one pair per line. Assumes the model is
+     *  currently empty (call clear() first) — only used for loading a freshly parsed log. */
+    void appendMultiple(const QList<QPair<MessageLevel, QString>>& lines);
     void clear();
 
     void suspend(bool suspend);

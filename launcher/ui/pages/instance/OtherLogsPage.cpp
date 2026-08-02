@@ -207,7 +207,7 @@ void OtherLogsPage::populateSelectLogBox()
         return;
     }
 
-    auto future = QtConcurrent::run(this, &OtherLogsPage::getPaths);
+    auto future = QtConcurrent::run([this] { return getPaths(); });
     m_pathsWatcher.setFuture(future);
 }
 
@@ -480,9 +480,7 @@ void OtherLogsPage::applyParseResult()
         m_model->setOverflowMessage(overflowMessageFor(m_model->getMaxLines()));
     }
     m_model->clear();
-    for (const auto& entry : result.lines) {
-        m_model->append(entry.first, entry.second);
-    }
+    m_model->appendMultiple(result.lines);
 
     if (m_instance) {
         ui->text->setModel(m_proxy);

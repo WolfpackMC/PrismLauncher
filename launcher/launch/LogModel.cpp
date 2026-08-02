@@ -57,6 +57,31 @@ void LogModel::append(MessageLevel level, QString line)
     endInsertRows();
 }
 
+void LogModel::appendMultiple(const QList<QPair<MessageLevel, QString>>& lines)
+{
+    if (m_suspended || lines.isEmpty()) {
+        return;
+    }
+
+    // Only the last m_maxLines entries can ever remain visible; mirrors what repeated append()
+    // calls would converge to once the circular buffer fills and starts evicting the oldest.
+    int first = 0;
+    int count = lines.size();
+    if (count > m_maxLines) {
+        first = count - m_maxLines;
+        count = m_maxLines;
+    }
+
+    beginInsertRows(QModelIndex(), m_numLines, m_numLines + count - 1);
+    for (int i = 0; i < count; i++) {
+        int lineNum = (m_firstLine + m_numLines) % m_maxLines;
+        m_content[lineNum].level = lines[first + i].first;
+        m_content[lineNum].line = lines[first + i].second;
+        m_numLines++;
+    }
+    endInsertRows();
+}
+
 void LogModel::suspend(bool suspend)
 {
     m_suspended = suspend;
