@@ -294,7 +294,7 @@ QPixmap Mod::icon(QSize size, Qt::AspectRatioMode mode) const
         m_packImageCacheKey.wasReadAttempt = true;
 
         QPointer<const Mod> self(this);
-        QtConcurrent::run([self] {
+        (void)QtConcurrent::run([self] {
             if (!self)
                 return;
 
