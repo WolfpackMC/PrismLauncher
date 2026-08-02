@@ -8,6 +8,8 @@
 
 class QListWidget;
 class QLabel;
+class QComboBox;
+class QLineEdit;
 class NewInstanceDialog;
 
 class WolfpackListPage : public QWidget, public BasePage {
@@ -34,6 +36,8 @@ class WolfpackListPage : public QWidget, public BasePage {
     NewInstanceDialog* m_dialog;
     QListWidget* m_list;
     QLabel* m_status;
+    QComboBox* m_profileComboBox;
+    QLineEdit* m_modpackIdLineEdit;
     Task::Ptr m_fetchJob;
     bool m_fetched = false;
 };

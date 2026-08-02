@@ -72,8 +72,9 @@ void WolfpackUpdate::executeTask()
 void WolfpackUpdate::runUpdater(const QString& path)
 {
     m_updaterPath = path;
-    emit logLine(tr("Running Wolfpack updater: %1").arg(m_updaterPath), MessageLevel::Launcher);
-    m_process.start(m_updaterPath, QStringList());
+    QStringList args{ "--profile", m_instance->wolfpackProfile(), "--modpack", m_instance->wolfpackModpackId() };
+    emit logLine(tr("Running Wolfpack updater: %1 %2").arg(m_updaterPath, args.join(' ')), MessageLevel::Launcher);
+    m_process.start(m_updaterPath, args);
 }
 
 void WolfpackUpdate::on_state(LoggedProcess::State state)

@@ -1065,6 +1065,20 @@ bool InstanceList::commitStagedInstance(const QString& path,
 
         instanceSet.insert(instID);
 
+        if (!commiting.extraInstanceSettings().isEmpty()) {
+            auto instanceSettings = std::make_unique<INISettingsObject>(FS::PathCombine(destination, "instance.cfg"));
+            NullInstance instance(m_globalSettings, std::move(instanceSettings), destination);
+            const auto extra = commiting.extraInstanceSettings();
+            for (auto it = extra.constBegin(); it != extra.constEnd(); ++it) {
+                if (it.key() == "WolfpackEnabled")
+                    instance.setWolfpackEnabled(it.value() == "true");
+                else if (it.key() == "WolfpackProfile")
+                    instance.setWolfpackProfile(it.value());
+                else if (it.key() == "WolfpackModpackId")
+                    instance.setWolfpackModpackId(it.value());
+            }
+        }
+
         emit instancesChanged();
         emit instanceSelectRequest(instID);
     }

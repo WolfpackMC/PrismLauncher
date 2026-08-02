@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QMap>
+
 #include "settings/SettingsObject.h"
 #include "tasks/Task.h"
 
@@ -53,6 +55,12 @@ class InstanceTask : public Task, public InstanceName {
 
     QString originalInstanceID() const { return m_original_instance_id; };
 
+    /** Extra instance.cfg key/value pairs to write once the instance is committed —
+     *  for provider-agnostic settings a creation page wants to preset (e.g. Wolfpack
+     *  profile/modpack ID) without every InstanceTask subclass needing to know about them. */
+    void setExtraInstanceSettings(QMap<QString, QString> settings) { m_extraInstanceSettings = std::move(settings); }
+    QMap<QString, QString> extraInstanceSettings() const { return m_extraInstanceSettings; }
+
    protected:
     void setOverride(bool override, QString instance_id_to_override = {})
     {
@@ -71,4 +79,5 @@ class InstanceTask : public Task, public InstanceName {
     bool m_confirm_update = true;
 
     QString m_original_instance_id;
+    QMap<QString, QString> m_extraInstanceSettings;
 };

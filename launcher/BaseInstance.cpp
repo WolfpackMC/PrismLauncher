@@ -132,6 +132,8 @@ BaseInstance::BaseInstance(SettingsObject* globalSettings, std::unique_ptr<Setti
 
     // Wolfpack updater
     m_settings->registerSetting("WolfpackEnabled", false);
+    m_settings->registerSetting("WolfpackProfile", "all");
+    m_settings->registerSetting("WolfpackModpackId", "wfp");
 
     m_settings->registerSetting("Profiler", "");
 }
@@ -205,6 +207,26 @@ bool BaseInstance::isWolfpackInstance() const
 void BaseInstance::setWolfpackEnabled(bool enabled)
 {
     m_settings->set("WolfpackEnabled", enabled);
+}
+
+QString BaseInstance::wolfpackProfile() const
+{
+    return m_settings->get("WolfpackProfile").toString();
+}
+
+void BaseInstance::setWolfpackProfile(const QString& profile)
+{
+    m_settings->set("WolfpackProfile", profile);
+}
+
+QString BaseInstance::wolfpackModpackId() const
+{
+    return m_settings->get("WolfpackModpackId").toString();
+}
+
+void BaseInstance::setWolfpackModpackId(const QString& modpackId)
+{
+    m_settings->set("WolfpackModpackId", modpackId);
 }
 
 bool BaseInstance::nameImpliesWolfpack() const

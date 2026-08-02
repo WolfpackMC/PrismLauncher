@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "WolfpackListPage.h"
 
+#include <QComboBox>
+#include <QFormLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QVBoxLayout>
 
@@ -25,9 +28,21 @@ WolfpackListPage::WolfpackListPage(NewInstanceDialog* dialog, QWidget* parent) :
     m_list = new QListWidget(this);
     layout->addWidget(m_status);
     layout->addWidget(m_list);
+
+    auto form = new QFormLayout();
+    m_profileComboBox = new QComboBox(this);
+    m_profileComboBox->addItems({ tr("All"), tr("Minimal") });
+    m_modpackIdLineEdit = new QLineEdit(this);
+    m_modpackIdLineEdit->setText("wfp");
+    form->addRow(tr("Profile"), m_profileComboBox);
+    form->addRow(tr("Modpack ID"), m_modpackIdLineEdit);
+    layout->addLayout(form);
+
     setLayout(layout);
 
     connect(m_list, &QListWidget::currentItemChanged, this, &WolfpackListPage::selectionChanged);
+    connect(m_profileComboBox, &QComboBox::currentIndexChanged, this, &WolfpackListPage::selectionChanged);
+    connect(m_modpackIdLineEdit, &QLineEdit::textChanged, this, &WolfpackListPage::selectionChanged);
 }
 
 void WolfpackListPage::openedImpl()
@@ -92,6 +107,12 @@ void WolfpackListPage::selectionChanged()
     auto name = item->text();
     auto mrpackUrl = item->data(Qt::UserRole).toString();
 
-    m_dialog->setSuggestedPack(name, new InstanceImportTask(QUrl(mrpackUrl), this));
+    auto* task = new InstanceImportTask(QUrl(mrpackUrl), this);
+    auto modpackId = m_modpackIdLineEdit->text().trimmed();
+    task->setExtraInstanceSettings({ { "WolfpackEnabled", "true" },
+                                      { "WolfpackProfile", m_profileComboBox->currentIndex() == 1 ? "minimal" : "all" },
+                                      { "WolfpackModpackId", modpackId.isEmpty() ? "wfp" : modpackId } });
+
+    m_dialog->setSuggestedPack(name, task);
     m_dialog->setSuggestedIcon("default");
 }

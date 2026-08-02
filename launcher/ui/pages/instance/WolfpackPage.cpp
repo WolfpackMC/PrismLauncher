@@ -40,6 +40,8 @@ WolfpackPage::WolfpackPage(BaseInstance* inst, QWidget* parent) : QWidget(parent
 {
     ui->setupUi(this);
     ui->enabledCheckbox->setChecked(m_inst->isWolfpackInstance());
+    ui->profileComboBox->setCurrentIndex(m_inst->wolfpackProfile() == "minimal" ? 1 : 0);
+    ui->modpackIdLineEdit->setText(m_inst->wolfpackModpackId());
 
     if (m_inst->nameImpliesWolfpack()) {
         ui->enabledCheckbox->setEnabled(false);
@@ -56,6 +58,9 @@ WolfpackPage::~WolfpackPage()
 bool WolfpackPage::apply()
 {
     m_inst->setWolfpackEnabled(ui->enabledCheckbox->isChecked());
+    m_inst->setWolfpackProfile(ui->profileComboBox->currentIndex() == 1 ? "minimal" : "all");
+    auto modpackId = ui->modpackIdLineEdit->text().trimmed();
+    m_inst->setWolfpackModpackId(modpackId.isEmpty() ? "wfp" : modpackId);
     return true;
 }
 
