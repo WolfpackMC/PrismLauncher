@@ -392,19 +392,24 @@ OtherLogsParseResult OtherLogsPage::parseLogFile(QString fileName,
     if (file.fileName().endsWith(".gz")) {
         QString line;
         auto error = GZip::readGzFileByBlocks(&file, [&line, &handleLine](const QByteArray& d) {
-            auto block = d;
-            int newlineIndex = block.indexOf('\n');
+            // Search and decode by offset into d directly rather than re-decoding the whole
+            // remaining block to a QString and re-searching from its start on every newline:
+            // a 16KB block can hold hundreds of short lines, and the old approach decoded and
+            // scanned the (shrinking) remainder once per line, making it quadratic in the
+            // number of newlines per block.
+            int start = 0;
+            int newlineIndex = d.indexOf('\n', start);
             while (newlineIndex != -1) {
-                line += QString::fromUtf8(block).left(newlineIndex);
-                block.remove(0, newlineIndex + 1);
+                line += QString::fromUtf8(d.constData() + start, newlineIndex - start);
+                start = newlineIndex + 1;
                 if (handleLine(line)) {
                     line.clear();
                     return false;
                 }
                 line.clear();
-                newlineIndex = block.indexOf('\n');
+                newlineIndex = d.indexOf('\n', start);
             }
-            line += QString::fromUtf8(block);
+            line += QString::fromUtf8(d.constData() + start, d.size() - start);
             return true;
         });
         if (!error.isEmpty()) {
