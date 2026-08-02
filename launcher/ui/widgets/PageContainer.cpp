@@ -84,23 +84,6 @@ PageContainer::PageContainer(BasePageProvider* pageProvider, QString defaultId, 
     createUI();
     useSidebarStyle(true);
 
-    int counter = 0;
-    auto pages = pageProvider->getPages();
-    for (auto* page : pages) {
-        auto* widget = dynamic_cast<QWidget*>(page);
-        widget->setParent(this);
-        page->stackIndex = m_pageStack->addWidget(widget);
-        page->listIndex = counter;
-        page->setParentContainer(this);
-        counter++;
-        page->updateExtraInfo = [this](const QString& id, const QString& info) {
-            if (m_currentPage && id == m_currentPage->id()) {
-                m_header->setText(m_currentPage->displayName() + info);
-            }
-        };
-    }
-    m_model->setPages(pages);
-
     m_proxyModel->setSourceModel(m_model);
     m_proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
 
@@ -111,8 +94,27 @@ PageContainer::PageContainer(BasePageProvider* pageProvider, QString defaultId, 
     m_pageList->setModel(m_proxyModel);
     connect(m_pageList->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &PageContainer::currentChanged);
     m_pageStack->setStackingMode(QStackedLayout::StackOne);
+
+    for (auto* page : pageProvider->getPages())
+        addPage(page);
+
     m_pageList->setFocus();
     selectPage(std::move(defaultId));
+}
+
+void PageContainer::addPage(BasePage* page)
+{
+    auto* widget = dynamic_cast<QWidget*>(page);
+    widget->setParent(this);
+    page->stackIndex = m_pageStack->addWidget(widget);
+    page->listIndex = m_model->pages().size();
+    page->setParentContainer(this);
+    page->updateExtraInfo = [this](const QString& id, const QString& info) {
+        if (m_currentPage && id == m_currentPage->id()) {
+            m_header->setText(m_currentPage->displayName() + info);
+        }
+    };
+    m_model->appendPage(page);
 }
 
 bool PageContainer::selectPage(QString pageId)

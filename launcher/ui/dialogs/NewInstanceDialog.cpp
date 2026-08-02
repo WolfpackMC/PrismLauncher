@@ -54,6 +54,7 @@
 #include <QLayout>
 #include <QPushButton>
 #include <QScreen>
+#include <QTimer>
 #include <QValidator>
 #include <utility>
 
@@ -145,6 +146,10 @@ NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
     }
 
     connect(m_container, &PageContainer::selectedPageChanged, this, &NewInstanceDialog::selectedPageChanged);
+
+    // Building all the modpack-provider pages (each with its own list view, model, and item delegate) is
+    // expensive; do it just after the dialog is shown instead of blocking the window from appearing.
+    QTimer::singleShot(0, this, &NewInstanceDialog::addModpackProviderPages);
 }
 
 void NewInstanceDialog::reject()
@@ -176,17 +181,21 @@ QList<BasePage*> NewInstanceDialog::getPages()
 
     pages.append(new CustomPage(this));
     pages.append(importPage);
-    pages.append(new AtlPage(this));
-    if (APPLICATION->capabilities() & Application::SupportsFlame)
-        pages.append(new FlamePage(this));
-    pages.append(new FtbPage(this));
-    pages.append(new LegacyFTB::Page(this));
-    pages.append(new FTBImportAPP::ImportFTBPage(this));
-    pages.append(new ModrinthPage(this));
-    pages.append(new TechnicPage(this));
-    pages.append(new WolfpackListPage(this));
 
     return pages;
+}
+
+void NewInstanceDialog::addModpackProviderPages()
+{
+    m_container->addPage(new AtlPage(this));
+    if (APPLICATION->capabilities() & Application::SupportsFlame)
+        m_container->addPage(new FlamePage(this));
+    m_container->addPage(new FtbPage(this));
+    m_container->addPage(new LegacyFTB::Page(this));
+    m_container->addPage(new FTBImportAPP::ImportFTBPage(this));
+    m_container->addPage(new ModrinthPage(this));
+    m_container->addPage(new TechnicPage(this));
+    m_container->addPage(new WolfpackListPage(this));
 }
 
 QString NewInstanceDialog::dialogTitle()

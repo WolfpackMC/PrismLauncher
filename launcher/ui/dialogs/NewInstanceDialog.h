@@ -102,4 +102,9 @@ class NewInstanceDialog : public QDialog, public BasePageProvider {
     QString m_searchTerm;
 
     void importIconNow();
+    /** Constructs the modpack-provider pages (ATLauncher, CurseForge, FTB, Modrinth, etc.) and adds them to
+     *  the container. These pages are relatively expensive to build (each sets up its own list view, model,
+     *  and item delegate), so they're deferred off the dialog's construction path and added shortly after
+     *  the dialog is shown, instead of blocking the window from appearing while all of them are built. */
+    void addModpackProviderPages();
 };

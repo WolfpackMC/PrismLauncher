@@ -69,6 +69,14 @@ class PageModel : public QAbstractListModel {
     }
     const QList<BasePage*>& pages() const { return m_pages; }
 
+    /** Appends a single page to the end of the model, e.g. for pages constructed lazily after startup. */
+    void appendPage(BasePage* page)
+    {
+        beginInsertRows(QModelIndex(), m_pages.size(), m_pages.size());
+        m_pages.append(page);
+        endInsertRows();
+    }
+
     BasePage* findPageEntryById(QString id)
     {
         for (auto page : m_pages) {

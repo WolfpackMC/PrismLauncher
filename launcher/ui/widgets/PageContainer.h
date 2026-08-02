@@ -87,6 +87,9 @@ class PageContainer : public QWidget, public BasePageContainer {
     BasePage* getPage(QString pageId) override;
     const QList<BasePage*>& getPages() const;
 
+    /** Adds a single page after construction, e.g. for pages a provider wants to build off the startup critical path. */
+    void addPage(BasePage* page);
+
     void refreshContainer() override;
     virtual void setParentContainer(BasePageContainer* container) { m_container = container; };
 
