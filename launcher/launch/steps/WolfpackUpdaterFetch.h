@@ -21,7 +21,7 @@
 
 #include "tasks/Task.h"
 
-// Downloads the latest Wolfpack `mcupdater` build from the WolfpackMC/updater GitHub Releases
+// Downloads the latest Wolfpack `wolfpacker` build from the WolfpackMC/updater GitHub Releases
 // "latest" release and caches it locally, so WolfpackUpdate doesn't require a manually
 // configured updater path.
 class WolfpackUpdaterFetch : public QObject {

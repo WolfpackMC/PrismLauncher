@@ -34,11 +34,11 @@ namespace {
 const QString kReleasesApiUrl = "https://api.github.com/repos/WolfpackMC/updater/releases/tags/latest";
 
 #ifdef Q_OS_WIN32
-const QString kAssetName = "mcupdater-windows.exe";
-const QString kBinaryName = "mcupdater.exe";
+const QString kAssetName = "wolfpacker-windows.exe";
+const QString kBinaryName = "wolfpacker.exe";
 #else
-const QString kAssetName = "mcupdater-linux";
-const QString kBinaryName = "mcupdater";
+const QString kAssetName = "wolfpacker-linux";
+const QString kBinaryName = "wolfpacker";
 #endif
 
 // GitHub publishes a "sha256:<hex>" digest for release assets; extracts the hex part for the

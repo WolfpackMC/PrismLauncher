@@ -175,7 +175,7 @@ class BaseInstance : public QObject {
     /** True if the instance's own name is enough to auto-classify it as a Wolfpack instance
      *  (contains "wolfpack" or "wfp", case-insensitive), regardless of the stored setting. */
     bool nameImpliesWolfpack() const;
-    /** "all" or "minimal" — which mcupdater profile to sync. */
+    /** "all" or "minimal" — which wolfpacker profile to sync. */
     QString wolfpackProfile() const;
     void setWolfpackProfile(const QString& profile);
     QString wolfpackModpackId() const;
