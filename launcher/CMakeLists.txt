@@ -1039,6 +1039,9 @@ SET(LAUNCHER_SOURCES
     ui/pages/modplatform/technic/TechnicPage.cpp
     ui/pages/modplatform/technic/TechnicPage.h
 
+    ui/pages/modplatform/wolfpack/WolfpackListPage.cpp
+    ui/pages/modplatform/wolfpack/WolfpackListPage.h
+
     ui/pages/modplatform/ImportPage.cpp
     ui/pages/modplatform/ImportPage.h
 

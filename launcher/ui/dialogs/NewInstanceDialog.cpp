@@ -65,6 +65,7 @@
 #include "ui/pages/modplatform/legacy_ftb/Page.h"
 #include "ui/pages/modplatform/modrinth/ModrinthPage.h"
 #include "ui/pages/modplatform/technic/TechnicPage.h"
+#include "ui/pages/modplatform/wolfpack/WolfpackListPage.h"
 #include "ui/widgets/PageContainer.h"
 
 NewInstanceDialog::NewInstanceDialog(const QString& initialGroup,
@@ -183,6 +184,7 @@ QList<BasePage*> NewInstanceDialog::getPages()
     pages.append(new FTBImportAPP::ImportFTBPage(this));
     pages.append(new ModrinthPage(this));
     pages.append(new TechnicPage(this));
+    pages.append(new WolfpackListPage(this));
 
     return pages;
 }

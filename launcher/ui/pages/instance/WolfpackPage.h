@@ -51,7 +51,7 @@ class WolfpackPage : public QWidget, public BasePage {
     explicit WolfpackPage(BaseInstance* inst, QWidget* parent = 0);
     virtual ~WolfpackPage();
     virtual QString displayName() const override { return tr("Wolfpack"); }
-    virtual QIcon icon() const override { return QIcon::fromTheme("settings"); }
+    virtual QIcon icon() const override { return QIcon::fromTheme("wolfpack"); }
     virtual QString id() const override { return "wolfpack"; }
     virtual bool apply() override;
     virtual QString helpPage() const override { return "Wolfpack"; }
