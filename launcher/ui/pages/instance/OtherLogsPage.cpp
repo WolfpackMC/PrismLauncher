@@ -102,7 +102,6 @@ OtherLogsPage::OtherLogsPage(QString id, QString displayName, QString helpPage, 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, &m_repopulateTimer, qOverload<>(&QTimer::start));
 
     connect(&m_parseWatcher, &QFutureWatcher<OtherLogsParseResult>::finished, this, [this] {
-        m_inFlightFile.clear();
         bool hadPending = m_reloadPending;
         m_reloadPending = false;
         applyParseResult();
@@ -269,10 +268,12 @@ void OtherLogsPage::reload()
         return;
     }
 
-    // A parse for this exact file is already running (e.g. the debounce timer fired again
-    // while a large/slow parse is still in flight); coalesce instead of piling up redundant
-    // concurrent reads of the same file. It'll be re-issued once the running one finishes.
-    if (!m_inFlightFile.isEmpty() && m_inFlightFile == m_currentFile && m_parseWatcher.isRunning()) {
+    // A parse is already running, either for this same file (e.g. the debounce timer fired
+    // again while a large/slow parse is still in flight) or for a file the user has since
+    // switched away from. Coalesce instead of running two parses concurrently or abandoning
+    // the in-flight one via setFuture(); it'll be re-issued for the current file once the
+    // running parse finishes.
+    if (m_parseWatcher.isRunning()) {
         m_reloadPending = true;
         return;
     }
@@ -295,7 +296,6 @@ void OtherLogsPage::reload()
     // thread; applyParseResult() re-enables them once a result comes back.
     setControlsEnabled(false);
 
-    m_inFlightFile = m_currentFile;
     auto filePath = FS::PathCombine(m_basePath, m_currentFile);
     auto future = QtConcurrent::run(&OtherLogsPage::parseLogFile, m_currentFile, filePath, m_instance != nullptr, maxLines,
                                     stopOnOverflow, overflowMessage);

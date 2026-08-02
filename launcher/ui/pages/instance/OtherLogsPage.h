@@ -138,11 +138,9 @@ class OtherLogsPage : public QWidget, public BasePage {
     QTimer m_repopulateTimer;
 
     QFutureWatcher<OtherLogsParseResult> m_parseWatcher;
-    /** File a parse is currently in flight for, empty if none. Used to coalesce repeated
-     *  reload() calls for the same file (e.g. from the debounce timer firing again while a
-     *  large/slow parse is still running) instead of piling up redundant concurrent reads. */
-    QString m_inFlightFile;
-    /** Set when reload() is coalesced away; re-issued once the in-flight parse finishes. */
+    /** Set when reload() is called while a parse is already in flight (same file re-triggered
+     *  by the debounce timer, or the user switching to a different file mid-parse); re-issued
+     *  for whatever m_currentFile is once the in-flight parse finishes. */
     bool m_reloadPending = false;
 
     LogFormatProxyModel* m_proxy;
