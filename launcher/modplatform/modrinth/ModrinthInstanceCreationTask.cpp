@@ -26,9 +26,20 @@
 #include "ui/pages/modplatform/OptionalModDialog.h"
 
 #include <QAbstractButton>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
 #include <vector>
+
+namespace {
+// Modpack files are content-addressed by their sha512 hash, so a jar downloaded for one pack
+// (or a previous install of the same pack) can be reused for any other pack that references the
+// exact same file, instead of hitting the network again.
+QString jarCachePath(const QByteArray& hash)
+{
+    return FS::PathCombine(APPLICATION->dataRoot(), "cache", "jars", QString::fromLatin1(hash.toHex()));
+}
+}  // namespace
 
 bool ModrinthCreationTask::abort()
 {
@@ -270,6 +281,17 @@ std::unique_ptr<MinecraftInstance> ModrinthCreationTask::createInstance()
             mod->setDetails(d);
             resources[file.hash.toHex()] = mod;
         }
+        auto cachePath = jarCachePath(file.hash);
+        if (file.hashAlgorithm == QCryptographicHash::Sha512 && QFile::exists(cachePath)) {
+            FS::ensureFilePathExists(filePath);
+            QFile::remove(filePath);
+            if (QFile::copy(cachePath, filePath)) {
+                qDebug() << "Reused cached copy of" << fileName;
+                continue;
+            }
+            qWarning() << "Failed to reuse cached copy of" << fileName << "; downloading instead";
+        }
+
         if (file.downloads.empty()) {
             setError(tr("The file '%1' is missing a download link. This is invalid in the pack format.").arg(fileName));
             return nullptr;
@@ -286,15 +308,25 @@ std::unique_ptr<MinecraftInstance> ModrinthCreationTask::createInstance()
         auto dl = Net::ApiDownload::makeFile(downloadUrl, filePath, Net::Download::Option::NoOptions, meta);
         dl->addValidator(new Net::ChecksumValidator(file.hashAlgorithm, file.hash));
         downloadMods->addNetAction(dl);
+        connect(dl.get(), &Task::succeeded, this, [filePath, cachePath] {
+            FS::ensureFilePathExists(cachePath);
+            QFile::remove(cachePath);
+            QFile::copy(filePath, cachePath);
+        });
         if (!file.downloads.empty()) {
             // FIXME: This really needs to be put into a ConcurrentTask of
             // MultipleOptionsTask's , once those exist :)
             auto param = dl.toWeakRef();
-            connect(dl.get(), &Task::failed, [&file, filePath, param, downloadMods, meta] {
+            connect(dl.get(), &Task::failed, [&file, filePath, cachePath, param, downloadMods, meta] {
                 QUrl fallbackUrl = file.downloads.dequeue();
                 auto ndl = Net::ApiDownload::makeFile(fallbackUrl, filePath, Net::Download::Option::NoOptions, meta);
                 ndl->addValidator(new Net::ChecksumValidator(file.hashAlgorithm, file.hash));
                 downloadMods->addNetAction(ndl);
+                connect(ndl.get(), &Task::succeeded, [filePath, cachePath] {
+                    FS::ensureFilePathExists(cachePath);
+                    QFile::remove(cachePath);
+                    QFile::copy(filePath, cachePath);
+                });
                 if (auto shared = param.lock()) {
                     shared->succeeded();
                 }

@@ -39,6 +39,7 @@ ResourceFolderModel::ResourceFolderModel(const QDir& dir, BaseInstance* instance
 
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &ResourceFolderModel::directoryChanged);
     connect(&m_resourceResolver, &ConcurrentTask::finished, this, [this] {
+        QMutexLocker lock(&m_resourceResolverMutex);
         m_resourceResolver.clear();
         m_resourceResolverRunning = false;
     });
@@ -384,11 +385,12 @@ void ResourceFolderModel::resolveResource(Resource::Ptr res)
         },
         Qt::ConnectionType::QueuedConnection);
 
+    QMutexLocker lock(&m_resourceResolverMutex);
     m_resourceResolver.addTask(task);
 
     if (!m_resourceResolverRunning) {
-        QThreadPool::globalInstance()->start(&m_resourceResolver);
         m_resourceResolverRunning = true;
+        QThreadPool::globalInstance()->start(&m_resourceResolver);
     }
 }
 

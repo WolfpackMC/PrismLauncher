@@ -49,23 +49,33 @@ WolfpackUpdate::WolfpackUpdate(LaunchTask* parent) : LaunchStep(parent)
 void WolfpackUpdate::executeTask()
 {
     auto cachePath = WolfpackUpdaterFetch::cachedBinaryPath();
-    if (QFile::exists(cachePath)) {
-        runUpdater(cachePath);
-        if (!WolfpackUpdaterFetch::recentlyChecked()) {
-            WolfpackUpdaterFetch::fetchLatest([](bool) {});
-        }
+    if (!QFile::exists(cachePath)) {
+        setStatus(tr("Downloading Wolfpack updater..."));
+        WolfpackUpdaterFetch::fetchLatest([this, cachePath](bool ok) {
+            if (ok) {
+                runUpdater(cachePath);
+            } else {
+                auto error = tr("Failed to download the Wolfpack updater.");
+                emit logLine(error, MessageLevel::Fatal);
+                emitFailed(error);
+            }
+        });
         return;
     }
 
-    setStatus(tr("Downloading Wolfpack updater..."));
-    WolfpackUpdaterFetch::fetchLatest([this, cachePath](bool ok) {
-        if (ok) {
+    setStatus(tr("Checking Wolfpack updater version..."));
+    WolfpackUpdaterFetch::verifyLatest([this, cachePath](WolfpackUpdaterFetch::VerifyResult result) {
+        if (result != WolfpackUpdaterFetch::VerifyResult::Mismatch) {
             runUpdater(cachePath);
-        } else {
-            auto error = tr("Failed to download the Wolfpack updater.");
-            emit logLine(error, MessageLevel::Fatal);
-            emitFailed(error);
+            return;
         }
+
+        emit logLine(tr("Wolfpack updater is outdated, downloading latest version..."), MessageLevel::Launcher);
+        WolfpackUpdaterFetch::fetchLatest([this, cachePath](bool ok) {
+            if (!ok)
+                emit logLine(tr("Failed to update the Wolfpack updater, using cached copy."), MessageLevel::Warning);
+            runUpdater(cachePath);
+        });
     });
 }
 

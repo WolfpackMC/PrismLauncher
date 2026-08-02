@@ -39,6 +39,7 @@
 #include <QLoggingCategory>
 #include <QRunnable>
 #include <QUuid>
+#include <atomic>
 
 #include "QObjectPtr.h"
 
@@ -116,7 +117,7 @@ class Task : public QObject, public QRunnable {
 
     virtual bool canAbort() const { return m_can_abort; }
 
-    auto getState() const -> State { return m_state; }
+    auto getState() const -> State { return m_state.load(); }
 
     QString getStatus() { return m_status; }
     QString getDetails() { return m_details; }
@@ -202,7 +203,7 @@ class Task : public QObject, public QRunnable {
     void setProgress(qint64 current, qint64 total);
 
    protected:
-    State m_state = State::Inactive;
+    std::atomic<State> m_state = State::Inactive;
     QStringList m_Warnings;
     QString m_failReason = "";
     QString m_status;

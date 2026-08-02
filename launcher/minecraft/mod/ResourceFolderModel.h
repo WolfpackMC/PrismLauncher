@@ -266,6 +266,7 @@ class ResourceFolderModel : public QAbstractListModel {
     // Runs off-thread
     ConcurrentTask m_resourceResolver;
     bool m_resourceResolverRunning = false;
+    QMutex m_resourceResolverMutex;
 
     QMap<int, Task::Ptr> m_active_parse_tasks;
     std::atomic<int> m_next_resolution_ticket = 0;

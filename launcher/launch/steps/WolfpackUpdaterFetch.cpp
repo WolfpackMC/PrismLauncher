@@ -15,7 +15,7 @@
 
 #include "WolfpackUpdaterFetch.h"
 
-#include <QDateTime>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -32,7 +32,6 @@ namespace {
 // excludes prereleases, and the rolling build is published as one (to distinguish it from
 // real versioned releases in the GitHub UI).
 const QString kReleasesApiUrl = "https://api.github.com/repos/WolfpackMC/updater/releases/tags/latest";
-const qint64 kRefreshThrottleSeconds = 60 * 60;  // 1 hour
 
 #ifdef Q_OS_WIN32
 const QString kAssetName = "mcupdater-windows.exe";
@@ -42,9 +41,30 @@ const QString kAssetName = "mcupdater-linux";
 const QString kBinaryName = "mcupdater";
 #endif
 
-QString checkedMarkerPath()
+// GitHub publishes a "sha256:<hex>" digest for release assets; extracts the hex part for the
+// asset matching kAssetName. Returns an empty string if not found or not published.
+QString findAssetDigest(const QJsonDocument& doc, QString& assetUrlOut)
 {
-    return WolfpackUpdaterFetch::cachedBinaryPath() + ".checked";
+    for (const auto& assetValue : doc.object()["assets"].toArray()) {
+        auto asset = assetValue.toObject();
+        if (asset["name"].toString() != kAssetName)
+            continue;
+        assetUrlOut = asset["browser_download_url"].toString();
+        auto digest = asset["digest"].toString();
+        return digest.startsWith("sha256:") ? digest.mid(7) : QString();
+    }
+    return {};
+}
+
+QString localBinarySha256()
+{
+    QFile f(WolfpackUpdaterFetch::cachedBinaryPath());
+    if (!f.open(QIODevice::ReadOnly))
+        return {};
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (!hash.addData(&f))
+        return {};
+    return hash.result().toHex();
 }
 }  // namespace
 
@@ -53,25 +73,21 @@ QString WolfpackUpdaterFetch::cachedBinaryPath()
     return FS::PathCombine(APPLICATION->dataRoot(), "wolfpack", kBinaryName);
 }
 
-bool WolfpackUpdaterFetch::recentlyChecked()
-{
-    QFile marker(checkedMarkerPath());
-    if (!marker.open(QIODevice::ReadOnly))
-        return false;
-    bool ok = false;
-    qint64 lastChecked = marker.readAll().trimmed().toLongLong(&ok);
-    if (!ok)
-        return false;
-    return (QDateTime::currentSecsSinceEpoch() - lastChecked) < kRefreshThrottleSeconds;
-}
-
 void WolfpackUpdaterFetch::fetchLatest(std::function<void(bool ok)> onDone)
 {
     auto* fetch = new WolfpackUpdaterFetch(onDone);
     fetch->start();
 }
 
+void WolfpackUpdaterFetch::verifyLatest(std::function<void(VerifyResult result)> onDone)
+{
+    auto* fetch = new WolfpackUpdaterFetch(onDone);
+    fetch->startVerify();
+}
+
 WolfpackUpdaterFetch::WolfpackUpdaterFetch(std::function<void(bool ok)> onDone) : m_onDone(onDone) {}
+
+WolfpackUpdaterFetch::WolfpackUpdaterFetch(std::function<void(VerifyResult result)> onVerifyDone) : m_onVerifyDone(onVerifyDone) {}
 
 void WolfpackUpdaterFetch::start()
 {
@@ -91,13 +107,7 @@ void WolfpackUpdaterFetch::start()
         }
 
         QString assetUrl;
-        for (const auto& assetValue : doc.object()["assets"].toArray()) {
-            auto asset = assetValue.toObject();
-            if (asset["name"].toString() == kAssetName) {
-                assetUrl = asset["browser_download_url"].toString();
-                break;
-            }
-        }
+        findAssetDigest(doc, assetUrl);
         if (assetUrl.isEmpty()) {
             finish(false);
             return;
@@ -132,12 +142,49 @@ void WolfpackUpdaterFetch::start()
 
 void WolfpackUpdaterFetch::finish(bool ok)
 {
-    if (ok) {
-        QFile marker(checkedMarkerPath());
-        if (marker.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            marker.write(QByteArray::number(QDateTime::currentSecsSinceEpoch()));
-    }
     if (m_onDone)
         m_onDone(ok);
+    deleteLater();
+}
+
+void WolfpackUpdaterFetch::startVerify()
+{
+    auto job = makeShared<NetJob>("Wolfpack::CheckLatestRelease", APPLICATION->network());
+    auto [action, response] = Net::Download::makeByteArray(QUrl(kReleasesApiUrl));
+    job->addNetAction(action);
+
+    connect(job.get(), &Task::failed, this, [this](const QString&) { finishVerify(VerifyResult::CheckFailed); });
+    connect(job.get(), &Task::succeeded, this, [this, response] {
+        QJsonParseError parseError{};
+        auto doc = QJsonDocument::fromJson(*response, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            finishVerify(VerifyResult::CheckFailed);
+            return;
+        }
+
+        QString assetUrl;
+        auto remoteDigest = findAssetDigest(doc, assetUrl);
+        if (remoteDigest.isEmpty()) {
+            finishVerify(VerifyResult::CheckFailed);
+            return;
+        }
+
+        auto localDigest = localBinarySha256();
+        if (localDigest.isEmpty()) {
+            finishVerify(VerifyResult::CheckFailed);
+            return;
+        }
+
+        finishVerify(remoteDigest.compare(localDigest, Qt::CaseInsensitive) == 0 ? VerifyResult::Match : VerifyResult::Mismatch);
+    });
+
+    m_job = job;
+    job->start();
+}
+
+void WolfpackUpdaterFetch::finishVerify(VerifyResult result)
+{
+    if (m_onVerifyDone)
+        m_onVerifyDone(result);
     deleteLater();
 }
