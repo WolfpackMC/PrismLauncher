@@ -109,6 +109,14 @@ OtherLogsPage::OtherLogsPage(QString id, QString displayName, QString helpPage, 
             reload();
     });
 
+    connect(&m_pathsWatcher, &QFutureWatcher<QStringList>::finished, this, [this] {
+        bool hadPending = m_repopulatePending;
+        m_repopulatePending = false;
+        applyPaths();
+        if (hadPending)
+            populateSelectLogBox();
+    });
+
     auto findShortcut = new QShortcut(QKeySequence(QKeySequence::Find), this);
     connect(findShortcut, &QShortcut::activated, this, &OtherLogsPage::findActivated);
 
@@ -192,13 +200,27 @@ void OtherLogsPage::closedImpl()
 
 void OtherLogsPage::populateSelectLogBox()
 {
+    // A directory scan is already running (e.g. the repopulate timer fired again while a scan
+    // of a large/slow log directory was still in flight); coalesce and rerun once it's done.
+    if (m_pathsWatcher.isRunning()) {
+        m_repopulatePending = true;
+        return;
+    }
+
+    auto future = QtConcurrent::run(this, &OtherLogsPage::getPaths);
+    m_pathsWatcher.setFuture(future);
+}
+
+void OtherLogsPage::applyPaths()
+{
+    const QStringList paths = m_pathsWatcher.result();
     const QString prevCurrentFile = m_currentFile;
 
     ui->selectLogBox->blockSignals(true);
     ui->selectLogBox->clear();
     if (!m_instance)
         ui->selectLogBox->addItem(tr("Current logs"));
-    ui->selectLogBox->addItems(getPaths());
+    ui->selectLogBox->addItems(paths);
     ui->selectLogBox->blockSignals(false);
 
     if (!prevCurrentFile.isEmpty()) {

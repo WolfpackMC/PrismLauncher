@@ -106,6 +106,9 @@ class OtherLogsPage : public QWidget, public BasePage {
     void UIToModelState();
     void setControlsEnabled(bool enabled);
 
+    /** Applies the result of an in-flight getPaths() scan to the log selector combo box. */
+    void applyPaths();
+
     QStringList getPaths();
 
     /** Reads and parses a log file off the GUI thread. Must not touch any QObject state shared
@@ -142,6 +145,13 @@ class OtherLogsPage : public QWidget, public BasePage {
      *  by the debounce timer, or the user switching to a different file mid-parse); re-issued
      *  for whatever m_currentFile is once the in-flight parse finishes. */
     bool m_reloadPending = false;
+
+    /** Runs getPaths()'s directory scan off the GUI thread, since populateSelectLogBox() can be
+     *  re-triggered rapidly by directoryChanged during an instance launch. */
+    QFutureWatcher<QStringList> m_pathsWatcher;
+    /** Set when populateSelectLogBox() is called while a scan is already in flight; re-issued
+     *  once the in-flight scan finishes. */
+    bool m_repopulatePending = false;
 
     LogFormatProxyModel* m_proxy;
     LogModel* m_model;
