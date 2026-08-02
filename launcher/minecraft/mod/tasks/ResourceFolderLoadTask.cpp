@@ -41,6 +41,7 @@
 #include "minecraft/mod/MetadataHandler.h"
 
 #include <QThread>
+#include <QtConcurrentMap>
 
 ResourceFolderLoadTask::ResourceFolderLoadTask(const QDir& resource_dir,
                                                const QDir& index_dir,
@@ -69,6 +70,9 @@ void ResourceFolderLoadTask::executeTask()
 
     // Read JAR files that don't have metadata
     m_resource_dir.refresh();
+
+    // Resolve filename collisions first (renames on disk, so must stay sequential).
+    QList<QFileInfo> toParse;
     for (auto entry : m_resource_dir.entryInfoList()) {
         auto filePath = entry.absoluteFilePath();
         if (auto app = APPLICATION_DYN; app && app->checkQSavePath(filePath)) {
@@ -79,9 +83,28 @@ void ResourceFolderLoadTask::executeTask()
             FS::move(filePath, newFilePath);
             entry = QFileInfo(newFilePath);
         }
+        toParse.append(entry);
+    }
 
+    // Constructing a Resource stats the file (size, type, dates, etc.), and each one is
+    // independent until merged into m_result below, so do that part in parallel. A dedicated
+    // pool is used instead of the global one: this task itself already runs on a QThreadPool
+    // worker thread, and blocking on the global pool from inside the global pool can starve/
+    // deadlock it if there are no free worker slots left.
+    QThreadPool parsePool;
+    parsePool.setMaxThreadCount(qMax(1, QThread::idealThreadCount()));
+    // QObject::moveToThread() may only be called by the thread the object currently lives in,
+    // so each Resource must be handed off to m_thread_to_spawn_into from within the very
+    // worker thread that constructed it (below) rather than afterwards from whatever thread
+    // this task happens to run on.
+    auto parsedResources = QtConcurrent::blockingMapped(&parsePool, toParse, [this](const QFileInfo& entry) -> Resource* {
         Resource* resource = m_create_func(entry);
+        resource->moveToThread(m_thread_to_spawn_into);
+        return resource;
+    });
 
+    // Merge results in the original order, same logic/semantics as before.
+    for (Resource* resource : parsedResources) {
         if (resource->enabled()) {
             if (m_result->resources.contains(resource->internal_id())) {
                 m_result->resources[resource->internal_id()]->setStatus(ResourceStatus::INSTALLED);
@@ -123,8 +146,12 @@ void ResourceFolderLoadTask::executeTask()
         }
     }
 
-    for (auto mod : m_result->resources)
-        mod->moveToThread(m_thread_to_spawn_into);
+    // Resources from the parallel pass above already live on m_thread_to_spawn_into; only
+    // move the ones from getFromMetadata() (constructed sequentially on this thread).
+    for (auto mod : m_result->resources) {
+        if (mod->thread() != m_thread_to_spawn_into)
+            mod->moveToThread(m_thread_to_spawn_into);
+    }
 
     if (m_aborted)
         emit finished();
