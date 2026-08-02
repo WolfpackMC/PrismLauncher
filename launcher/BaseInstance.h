@@ -172,6 +172,9 @@ class BaseInstance : public QObject {
 
     bool isWolfpackInstance() const;
     void setWolfpackEnabled(bool enabled);
+    /** True if the instance's own name is enough to auto-classify it as a Wolfpack instance
+     *  (contains "wolfpack" or "wfp", case-insensitive), regardless of the stored setting. */
+    bool nameImpliesWolfpack() const;
 
     virtual QStringList extraArguments();
 

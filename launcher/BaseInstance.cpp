@@ -199,12 +199,17 @@ void BaseInstance::setManagedPack(const QString& type,
 
 bool BaseInstance::isWolfpackInstance() const
 {
-    return m_settings->get("WolfpackEnabled").toBool();
+    return nameImpliesWolfpack() || m_settings->get("WolfpackEnabled").toBool();
 }
 
 void BaseInstance::setWolfpackEnabled(bool enabled)
 {
     m_settings->set("WolfpackEnabled", enabled);
+}
+
+bool BaseInstance::nameImpliesWolfpack() const
+{
+    return name().contains("wolfpack", Qt::CaseInsensitive) || name().contains("wfp", Qt::CaseInsensitive);
 }
 
 void BaseInstance::copyManagedPack(BaseInstance& other)

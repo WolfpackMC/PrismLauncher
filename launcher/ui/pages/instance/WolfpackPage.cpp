@@ -40,6 +40,12 @@ WolfpackPage::WolfpackPage(BaseInstance* inst, QWidget* parent) : QWidget(parent
 {
     ui->setupUi(this);
     ui->enabledCheckbox->setChecked(m_inst->isWolfpackInstance());
+
+    if (m_inst->nameImpliesWolfpack()) {
+        ui->enabledCheckbox->setEnabled(false);
+        ui->enabledCheckbox->setToolTip(
+            tr("This instance's name contains \"Wolfpack\" or \"WFP\", so it's automatically treated as a Wolfpack instance."));
+    }
 }
 
 WolfpackPage::~WolfpackPage()
