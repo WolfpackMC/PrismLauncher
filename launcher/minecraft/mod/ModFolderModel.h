@@ -103,6 +103,7 @@ class ModFolderModel : public ResourceFolderModel {
    private slots:
     void onParseSucceeded(int ticket, QString resource_id) override;
     void onParseFinished();
+    void onModIconUpdated();
 
    private:
     QHash<QString, QSet<Mod*>> m_requiredBy;

@@ -40,6 +40,7 @@
 #include <QDir>
 #include <QRegularExpression>
 #include <QString>
+#include <QtConcurrentRun>
 
 #include "MTPixmapCache.h"
 #include "MetadataHandler.h"
@@ -284,12 +285,34 @@ QPixmap Mod::icon(QSize size, Qt::AspectRatioMode mode) const
         qDebug() << "Mod" << name() << "Had it's icon evicted from the cache. reloading...";
         PixmapCache::markCacheMissByEviciton();
     }
-    // Image got evicted from the cache or an attempt to load it has not been made. load it and retry.
-    m_packImageCacheKey.wasReadAttempt = true;
-    if (ModUtils::loadIconFile(*this, &cached_image)) {
-        return pixmap_transform(cached_image);
+
+    // Image got evicted from the cache or an attempt to load it has not been made.
+    // Load it off the GUI thread so scrolling through a large, uncached mod list doesn't
+    // stall on disk/zip IO, and notify listeners via iconUpdated() once it's ready.
+    if (!m_icon_loading) {
+        m_icon_loading = true;
+        m_packImageCacheKey.wasReadAttempt = true;
+
+        QPointer<const Mod> self(this);
+        QtConcurrent::run([self] {
+            if (!self)
+                return;
+
+            QPixmap loaded;
+            ModUtils::loadIconFile(*self, &loaded);
+
+            QMetaObject::invokeMethod(
+                const_cast<QObject*>(static_cast<const QObject*>(self.data())),
+                [self] {
+                    if (!self)
+                        return;
+                    const_cast<Mod*>(self.data())->m_icon_loading = false;
+                    emit const_cast<Mod*>(self.data())->iconUpdated();
+                },
+                Qt::QueuedConnection);
+        });
     }
-    // Image failed to load
+
     return {};
 }
 

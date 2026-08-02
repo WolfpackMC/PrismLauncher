@@ -124,7 +124,10 @@ QVariant ModFolderModel::data(const QModelIndex& index, int role) const
             break;
         case Qt::DecorationRole: {
             if (column == ImageColumn) {
-                return at(row).icon({ 32, 32 }, Qt::AspectRatioMode::KeepAspectRatioByExpanding);
+                auto& mod = at(row);
+                // Icons not yet in cache are loaded off-thread; wire up a repaint for when that finishes.
+                connect(&mod, &Mod::iconUpdated, this, &ModFolderModel::onModIconUpdated, Qt::UniqueConnection);
+                return mod.icon({ 32, 32 }, Qt::AspectRatioMode::KeepAspectRatioByExpanding);
             }
             break;
         }
@@ -257,6 +260,20 @@ void ModFolderModel::onParseSucceeded(int ticket, QString mod_id)
         mod->finishResolvingWithDetails(std::move(result->details));
     }
     emit dataChanged(index(row, RequiresColumn), index(row, RequiredByColumn));
+}
+
+void ModFolderModel::onModIconUpdated()
+{
+    auto* mod = qobject_cast<Mod*>(sender());
+    if (!mod)
+        return;
+
+    auto iter = m_resources_index.constFind(mod->internal_id());
+    if (iter == m_resources_index.constEnd())
+        return;
+
+    int row = iter.value();
+    emit dataChanged(index(row, ImageColumn), index(row, ImageColumn), { Qt::DecorationRole });
 }
 
 Mod* findById(QSet<Mod*> mods, QString modId)

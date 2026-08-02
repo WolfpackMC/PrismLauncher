@@ -99,6 +99,10 @@ class Mod : public Resource {
 
     void finishResolvingWithDetails(ModDetails&& details);
 
+   signals:
+    /** Emitted after an asynchronous icon load (triggered by icon()) completes. */
+    void iconUpdated();
+
    protected:
     ModDetails m_local_details;
 
@@ -109,6 +113,8 @@ class Mod : public Resource {
         bool wasEverUsed = false;
         bool wasReadAttempt = false;
     } mutable m_packImageCacheKey;
+
+    mutable bool m_icon_loading = false;
 
     int m_requiredByCount = 0;
     int m_requiresCount = 0;
