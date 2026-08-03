@@ -293,19 +293,37 @@ QPixmap Mod::icon(QSize size, Qt::AspectRatioMode mode) const
         m_icon_loading = true;
         m_packImageCacheKey.wasReadAttempt = true;
 
+        // Only value-copied data crosses into the worker lambda below — never `this`/`self`.
+        // The Mod can be destroyed by the GUI thread (list reload) at any time while the worker
+        // thread is doing disk/zip IO; a QPointer null-check does not protect against that,
+        // since it only guarantees the check itself is race-free, not the object's lifetime
+        // afterwards. `self` is only ever dereferenced back on the GUI thread below, where
+        // Qt's queued invokeMethod-with-context already cancels the call if the object died.
         QPointer<const Mod> self(this);
-        (void)QtConcurrent::run([self] {
-            if (!self)
+        QFileInfo mod_fileinfo = fileinfo();
+        ResourceType mod_type = type();
+        QString icon_path = iconPath();
+
+        (void)QtConcurrent::run([self, mod_fileinfo, mod_type, icon_path] {
+            QByteArray data;
+            bool ok = ModUtils::readIconBytes(mod_fileinfo, mod_type, icon_path, data);
+
+            // Re-check before using `self` as the invokeMethod context: QPointer only
+            // guarantees this read is race-free, not that the object survives past it, so
+            // a null target must not be handed to invokeMethod.
+            QObject* context = const_cast<QObject*>(static_cast<const QObject*>(self.data()));
+            if (!context)
                 return;
 
-            QPixmap loaded;
-            ModUtils::loadIconFile(*self, &loaded);
-
             QMetaObject::invokeMethod(
-                const_cast<QObject*>(static_cast<const QObject*>(self.data())),
-                [self] {
+                context,
+                [self, ok, data]() mutable {
                     if (!self)
                         return;
+                    if (ok) {
+                        QPixmap loaded;
+                        ModUtils::processIconPNG(*self, std::move(data), &loaded);
+                    }
                     const_cast<Mod*>(self.data())->m_icon_loading = false;
                     emit const_cast<Mod*>(self.data())->iconUpdated();
                 },

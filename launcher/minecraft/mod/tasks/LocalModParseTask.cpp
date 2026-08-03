@@ -733,61 +733,60 @@ bool processIconPNG(const Mod& mod, QByteArray&& raw_data, QPixmap* pixmap)
     return true;
 }
 
-bool loadIconFile(const Mod& mod, QPixmap* pixmap)
+bool readIconBytes(const QFileInfo& mod_fileinfo, ResourceType mod_type, const QString& icon_path, QByteArray& out_data)
 {
-    if (mod.iconPath().isEmpty()) {
+    if (icon_path.isEmpty()) {
         qWarning() << "No Iconfile set, be sure to parse the mod first";
         return false;
     }
 
-    auto png_invalid = [&mod](const QString& reason) {
-        qWarning() << "Mod at" << mod.fileinfo().filePath() << "does not have a valid icon:" << reason;
+    auto invalid = [&mod_fileinfo](const QString& reason) {
+        qWarning() << "Mod at" << mod_fileinfo.filePath() << "does not have a valid icon:" << reason;
         return false;
     };
 
-    switch (mod.type()) {
+    switch (mod_type) {
         case ResourceType::FOLDER: {
-            QFileInfo icon_info(FS::PathCombine(mod.fileinfo().filePath(), mod.iconPath()));
+            QFileInfo icon_info(FS::PathCombine(mod_fileinfo.filePath(), icon_path));
             if (icon_info.exists() && icon_info.isFile()) {
                 QFile icon(icon_info.filePath());
                 if (!icon.open(QIODevice::ReadOnly)) {
-                    return png_invalid("failed to open file " + icon_info.filePath() + " " + icon.errorString());
+                    return invalid("failed to open file " + icon_info.filePath() + " " + icon.errorString());
                 }
-                auto data = icon.readAll();
-
-                bool icon_result = ModUtils::processIconPNG(mod, std::move(data), pixmap);
-
+                out_data = icon.readAll();
                 icon.close();
-
-                if (!icon_result) {
-                    return png_invalid("invalid png image");  // icon invalid
-                }
                 return true;
             }
-            return png_invalid("file '" + icon_info.filePath() + "' does not exists or is not a file");
+            return invalid("file '" + icon_info.filePath() + "' does not exists or is not a file");
         }
         case ResourceType::ZIPFILE: {
-            MMCZip::ArchiveReader zip(mod.fileinfo().filePath());
-            auto file = zip.goToFile(mod.iconPath());
+            MMCZip::ArchiveReader zip(mod_fileinfo.filePath());
+            auto file = zip.goToFile(icon_path);
             if (file) {
-                auto data = file->readAll();
-
-                bool icon_result = ModUtils::processIconPNG(mod, std::move(data), pixmap);
-
-                if (!icon_result) {
-                    return png_invalid("invalid png image");  // icon png invalid
-                }
+                out_data = file->readAll();
                 return true;
             }
-            return png_invalid("Failed to set '" + mod.iconPath() +
-                               "' as current file in zip archive");  // could not set icon as current file.
+            return invalid("Failed to set '" + icon_path + "' as current file in zip archive");  // could not set icon as current file.
         }
         case ResourceType::LITEMOD: {
-            return png_invalid("litemods do not have icons");  // can lightmods even have icons?
+            return invalid("litemods do not have icons");  // can lightmods even have icons?
         }
         default:
-            return png_invalid("Invalid type for mod, can not load icon.");
+            return invalid("Invalid type for mod, can not load icon.");
     }
+}
+
+bool loadIconFile(const Mod& mod, QPixmap* pixmap)
+{
+    QByteArray data;
+    if (!readIconBytes(mod.fileinfo(), mod.type(), mod.iconPath(), data))
+        return false;
+
+    if (!ModUtils::processIconPNG(mod, std::move(data), pixmap)) {
+        qWarning() << "Mod at" << mod.fileinfo().filePath() << "does not have a valid icon: invalid png image";
+        return false;
+    }
+    return true;
 }
 
 }  // namespace ModUtils

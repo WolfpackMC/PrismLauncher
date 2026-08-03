@@ -28,6 +28,10 @@ bool validate(QFileInfo file);
 
 bool processIconPNG(const Mod& mod, QByteArray&& raw_data, QPixmap* pixmap);
 bool loadIconFile(const Mod& mod, QPixmap* pixmap);
+
+/** Reads the raw icon bytes off disk/zip only — touches no Mod state, safe to call
+ *  from a worker thread while the owning Mod may be concurrently destroyed. */
+bool readIconBytes(const QFileInfo& mod_fileinfo, ResourceType mod_type, const QString& icon_path, QByteArray& out_data);
 }  // namespace ModUtils
 
 class LocalModParseTask : public Task {
