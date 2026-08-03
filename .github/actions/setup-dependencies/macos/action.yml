@@ -22,7 +22,6 @@ runs:
         echo "JAVA_HOME=$(/usr/libexec/java_home -v 17)" >> "$GITHUB_ENV"
 
     - name: Setup vcpkg cache
-      if: ${{ inputs.build-type == 'Debug' }}
       shell: bash
       env:
         USERNAME: ${{ github.repository_owner }}
