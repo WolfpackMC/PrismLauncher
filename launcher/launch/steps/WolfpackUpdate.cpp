@@ -106,6 +106,14 @@ void WolfpackUpdate::on_state(LoggedProcess::State state)
                 emitFailed(error);
             } else {
                 emit logLine(tr("Wolfpack updater ran successfully.\n\n"), MessageLevel::Launcher);
+                // The updater may have just patched instance.cfg (memory alloc, JVM args) on
+                // disk. m_settings was cached in memory back in LaunchController::launchInstance,
+                // before this step ran, and nothing else re-reads it before javaArguments()/
+                // VerifyJavaInstall consume those values later in this same launch — without this,
+                // the patch wouldn't apply until a launch after next, and would be silently
+                // clobbered by a full-map instance.cfg rewrite (e.g. setLastLaunch) using the
+                // stale in-memory settings before that ever happens.
+                m_instance->reloadSettings();
                 emitSucceeded();
             }
         }
